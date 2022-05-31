@@ -11,6 +11,7 @@ const app = express();
 // Express.js middleware
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+
 // Connect to database
 const db = mysql.createConnection(
     {
@@ -25,7 +26,7 @@ const db = mysql.createConnection(
 );
 
 
-// GET all candidates
+// GET all candidates and their party affiliation
 app.get('/api/candidates', (req, res) => {
     const sql = `SELECT candidates.*, parties.name
                  AS party_name
@@ -46,7 +47,7 @@ app.get('/api/candidates', (req, res) => {
 });
 
 
-// GET a single candidate
+// GET a single candidate with party affiliation
 app.get('/api/candidate/:id', (req, res) => {
     const sql = `SELECT candidates.*, parties.name
                  AS party_name
@@ -95,14 +96,25 @@ app.delete('/api/candidate/:id', (req, res) => {
 
 // CREATE a candidate
 app.post('/api/candidate', ({ body}, res) => {
-    const errors = inputCheck(body, 'first_name', 'last_name', 'industry_connected');
+    // Candidate is allowed not to be affiliation with a party
+    const errors = inputCheck(
+        body, 
+        'first_name', 
+        'last_name', 
+        'industry_connected'
+        );
     if (errors) {
         res.status(400).json({ error: errors });
         return;
     }
     const sql = `INSERT INTO candidates (first_name, last_name, industry_connected)
     VALUES (?, ?, ?)`;
-    const params = [body.first_name, body.last_name, body.industry_connected];
+    const params = [
+        body.first_name, 
+        body.last_name, 
+        body.industry_connected
+    ];
+
     db.query(sql, params, (err, result) => {
         
     if (err) {
@@ -135,10 +147,13 @@ app.get('/api/parties', (req, res) => {
 
 // UPDATE a candidate's party
 app.put('/api/candidate/:id', (req, res) => {
+    // Candidate is allowed to not have a party affiliation
     const errors = inputCheck(req.body, "party_id");
     if (errors) {
         res.status(400).json({ error: errors });
+        return;
     }  
+
     const sql = `UPDATE candidates SET party_id = ?
                  WHERE id = ?`;
     const params = [req.body.party_id, req.params.id];
